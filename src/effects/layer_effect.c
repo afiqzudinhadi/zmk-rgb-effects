@@ -90,11 +90,16 @@ static void layer_effect_render(struct zmk_rgb_effect_ctx *ctx) {
     uint8_t layer = rgb_underglow_top_layer();
     const struct zmk_behavior_binding *rgbmap = rgb_underglow_get_bindings(layer);
     if (rgbmap != NULL) {
-        apply_rgbmap(ctx->pixels, ctx->num_pixels, rgbmap, ZMK_KEYMAP_LEN,
-                     layer, ctx->base_color.b);
+        if (apply_rgbmap(ctx->pixels, ctx->num_pixels, rgbmap, ZMK_KEYMAP_LEN,
+                         layer, ctx->base_color.b)) {
+            int fade_delay = zmk_rgbmap_fade_delay(layer);
+            if (fade_delay >= 0) {
+                zmk_rgb_set_tick_delay(fade_delay);
+            }
+        }
     } else {
-        for (int i = 0; i < ctx->num_pixels; i++) {
-            ctx->pixels[i] = (struct led_rgb){r : 0, g : 0, b : 0};
+        if (zmk_rgb_is_on()) {
+            zmk_rgb_underglow_transient_off();
         }
     }
 }
@@ -107,11 +112,27 @@ static void layer_effect_on_deselect(void) {
     layer_effect_active = false;
 }
 
-ZMK_RGB_EFFECT_DEFINE(effect_layer, "Layer Indicators",
-                      layer_effect_render, ZMK_RGB_EFFECT_STATIC,
-                      layer_effect_on_select, layer_effect_on_deselect);
+static void layer_effect_on_idle(bool awake) {
+    if (awake) {
+        if (layer_effect_active) {
+            zmk_rgb_request_refresh_wakeup(true);
+        }
+    } else {
+        zmk_rgb_underglow_transient_off();
+    }
+}
 
-/* Event listeners — refresh pixels on layer/color change */
+static bool layer_effect_is_active(void) {
+    return layer_effect_active;
+}
+
+ZMK_RGB_EFFECT_DEFINE(effect_layer, "Layer Indicators",
+                      layer_effect_render,
+                      ZMK_RGB_EFFECT_STATIC | ZMK_RGB_EFFECT_PERSISTENT,
+                      layer_effect_on_select, layer_effect_on_deselect,
+                      layer_effect_on_idle, layer_effect_is_active);
+
+/* Event listeners */
 
 static int layer_effect_event_listener(const zmk_event_t *eh) {
     if (!layer_effect_active) {
@@ -126,13 +147,17 @@ static int layer_effect_event_listener(const zmk_event_t *eh) {
 #if !IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
         set_peripheral_layers_state(ev->layers);
 #endif
-        zmk_rgb_request_refresh();
+        zmk_rgb_request_refresh_wakeup(true);
         return 0;
     }
 #endif
 
     if (as_zmk_underglow_color_changed(eh)) {
-        zmk_rgb_request_refresh();
+        const struct zmk_underglow_color_changed *ev = as_zmk_underglow_color_changed(eh);
+        uint8_t layer = rgb_underglow_top_layer();
+        if ((ev->layers & BIT(layer)) == BIT(layer)) {
+            zmk_rgb_request_refresh_wakeup(ev->wakeup);
+        }
         return 0;
     }
 
