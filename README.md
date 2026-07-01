@@ -152,7 +152,12 @@ Add to your `west.yml`:
   revision: main
 ```
 
-Requires the ZMK fork with the modular effect API (`rgb-modular-v1.1` or later). No dependency on this module — the linker section collects effect registrations across all modules.
+Requires the ZMK fork with the modular effect API. No dependency on this module — the linker section collects effect registrations across all modules.
+
+- `rgb-modular-v1.0` — basic effect API (`ZMK_RGB_EFFECT_DEFINE` with 6 params: render, flags, on_select, on_deselect). Sufficient for simple animated or static effects.
+- `rgb-modular-v1.1` — extended API (adds `on_idle`, `is_active` callbacks, `ZMK_RGB_EFFECT_PERSISTENT` flag, `zmk_rgb_request_refresh_wakeup()`, `zmk_rgb_set_tick_delay()`, `zmk_rgb_is_on()`). Needed for effects that persist across RGB toggle/idle or use fade-delay.
+
+Start with `rgb-modular-v1.0` if you want to explore the API from scratch.
 
 ### Effect flags
 
