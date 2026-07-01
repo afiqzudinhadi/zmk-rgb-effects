@@ -107,6 +107,53 @@ target_sources(app PRIVATE src/effects/my_effect.c)
 
 The effect auto-registers via linker section. Accessible by cycling with `RGB_EFF`.
 
+### As a separate module repo
+
+You can also create effects in their own repo without modifying this module:
+
+```
+my-zmk-rgb-rainbow/
+├── zephyr/
+│   └── module.yml
+├── CMakeLists.txt
+├── Kconfig
+└── src/
+    └── rainbow.c
+```
+
+`zephyr/module.yml`:
+```yaml
+build:
+  cmake: .
+  kconfig: Kconfig
+```
+
+`Kconfig`:
+```
+config ZMK_RGB_EFFECT_RAINBOW
+    bool "Rainbow RGB effect"
+    depends on ZMK_RGB_UNDERGLOW
+    default y
+```
+
+`CMakeLists.txt`:
+```cmake
+if(CONFIG_ZMK_RGB_EFFECT_RAINBOW)
+  target_sources(app PRIVATE src/rainbow.c)
+endif()
+```
+
+`src/rainbow.c` uses `ZMK_RGB_EFFECT_DEFINE` exactly as above.
+
+Add to your `west.yml`:
+```yaml
+- name: my-zmk-rgb-rainbow
+  remote: your-github-remote
+  revision: main
+```
+
+Requires the ZMK fork with the modular effect API (`rgb-modular-v1.1` or later). No dependency on this module — the linker section collects effect registrations across all modules.
+
 ### Effect flags
 
 | Flag | Description |
